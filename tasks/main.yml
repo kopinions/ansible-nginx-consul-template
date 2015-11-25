@@ -7,6 +7,10 @@
   copy: src={{item}} dest=/etc/nginx/ctmpl/{{item| regex_replace('^.*/ansible-nginx-consul-template\/files/(.*\.conf.ctmpl)$', '\\1')}} force=yes
   with_fileglob:
     - ./*
+
 - name: config in file
-  lineinfile: dest=/opt/consul-template/config/consul-template.cfg line='template { \n source = "/etc/nginx/ctmpl/nginx.conf.ctmpl" \n destination = "/etc/nginx/nginx.conf" \n command = "sudo nginx -s reload" \n perms = 0600 \n }'
+  template: src=nginx.cfg.j2 dest=/opt/consul-template/config.d/nginx.cfg
   notify: restart consul-template
+
+- name: ensure consul-template is running
+  service: name=consul-template state=started

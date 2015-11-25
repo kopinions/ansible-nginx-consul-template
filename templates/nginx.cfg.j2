@@ -1,0 +1,6 @@
+template { 
+	source = "/etc/nginx/ctmpl/nginx.conf.ctmpl" 
+	destination = "/etc/nginx/nginx.conf" 
+	command = "sudo nginx -s reload" 
+	perms = 0600 
+}
