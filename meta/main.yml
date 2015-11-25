@@ -105,5 +105,5 @@ galaxy_info:
   - platform
 dependencies:
   - { role: ansible-nginx}
-  - { role: ansible-consul-template, consul_template_use_upstart: true }
+  - { role: ansible-consul-template}
 
