@@ -10,7 +10,9 @@
 
 - name: config in file
   template: src=nginx.cfg.j2 dest=/opt/consul-template/config.d/nginx.cfg
-  notify: restart consul-template
+
+- name: restart consul-template
+  service: name=consul-template state=restarted
 
 - name: ensure consul-template is running
   service: name=consul-template state=started

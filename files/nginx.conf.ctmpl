@@ -1,13 +1,13 @@
-{{ range "nginx" | ls }}
+{{ range "router/nginx" | ls }}
 {{ .Key }} {{ .Value }};{{ end }}
 
 events {
-  {{ range "nginx/events" | ls }}
+  {{ range "router/nginx/events" | ls }}
   {{ .Key }} {{ .Value }};{{ end }}
 }
 
 http {
-  {{ range "nginx/http" | ls }}
+  {{ range "router/nginx/http" | ls }}
   {{ .Key }} {{ .Value }};{{ end }}
 
   {{ range $service := services }}
@@ -33,7 +33,7 @@ http {
         {{ range .Tags }}
           server {
             listen 80;
-            server_name {{ . }}.{{ $service.Name }}.service.consul;
+            server_name {{ . }}.{{ $service.Name }}.{{key "router/domain"}};
             root /dev/null;
             location / {
               proxy_pass http://{{ $service.Name }}_{{ . }}/;
@@ -42,7 +42,7 @@ http {
         {{ else }}
           server {
             listen 80;
-            server_name {{ $service.Name }}.service.consul;
+            server_name {{ $service.Name }}.{{key "router/domain"}};
             root /dev/null;
             location / {
               proxy_pass http://{{ $service.Name }}/;
