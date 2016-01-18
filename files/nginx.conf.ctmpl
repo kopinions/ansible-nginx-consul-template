@@ -34,7 +34,6 @@ http {
           server {
             listen 80;
             server_name {{ . }}.{{ $service.Name }}.{{key "router/domain"}};
-            root /dev/null;
             location / {
               proxy_pass http://{{ $service.Name }}_{{ . }}/;
             }
@@ -43,7 +42,6 @@ http {
           server {
             listen 80;
             server_name {{ $service.Name }}.{{key "router/domain"}};
-            root /dev/null;
             location / {
               proxy_pass http://{{ $service.Name }}/;
             }
