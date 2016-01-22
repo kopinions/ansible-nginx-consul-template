@@ -4,9 +4,10 @@
   file: path=/etc/nginx/ctmpl state=directory
 
 - name: copy ctmpls
-  copy: src={{item}} dest=/etc/nginx/ctmpl/{{item| regex_replace('^.*/ansible-nginx-consul-template\/files/(.*\.conf.ctmpl)$', '\\1')}} force=yes
-  with_fileglob:
-    - ./*
+  copy: src=nginx.conf.ctmpl dest=/etc/nginx/ctmpl/nginx.conf.ctmpl force=yes
+
+- name: copy consul plugins
+  copy: src=app_conf_service_instance_checker dest=/bin/app_conf_service_instance_checker
 
 - name: config in file
   template: src=nginx.cfg.j2 dest=/opt/consul-template/config.d/nginx.cfg
