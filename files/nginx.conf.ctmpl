@@ -27,7 +27,6 @@ http {
   {{ end }}
 
 
-
   {{ range $service := services }}
     {{ if not (in ("mesos-consul,consul,builder"|split ",") $service.Name) }}
         {{ range .Tags }}
@@ -49,19 +48,37 @@ http {
         {{ end }}
     {{ end }}
   {{ end }}
-
-    {{ range $key, $pairs := tree "routes"| byKey }}{{$domain := $key}}{{ range $pathKey, $pathPairs := tree (printf "%s/%s" "routes" $domain) | byKey }}
-    {{$route := $pathKey|replaceAll ":" "/"}}{{$proxy_pass := printf "%s_%s" ($domain|replaceAll "." "_") ($route|replaceAll "/" "_")}}{{if ((printf "routes/%s/%s/" $domain $pathKey) | plugin "myplugin") | eq "true" }}
-    upstream {{$proxy_pass}} { {{range $pair := $pathPairs }}{{$app := .Key}}{{ range $service := services }}{{ if $service.Name | eq $app }}{{ range service $service.Name }}
-        server {{.Address}}:{{.Port}};{{ end }}{{end}}{{end}}{{end}}
-    }
-    server {
-       listen 80;
-       server_name {{$domain}};
-       location /{{$route }} {
-         proxy_pass http://{{$proxy_pass}}/{{$route}};
-       }
-    } {{end}}{{end}}{{end}}
+  {{ range $key, $pairs := tree "routes"| byKey }}
+    {{$domain := $key}}
+    {{ range $pathKey, $pathPairs := tree (printf "%s/%s" "routes" $domain) | byKey }}
+        {{$route := $pathKey|replaceAll ":" "/"}}
+        {{$proxy_pass := printf "%s_%s" ($domain|replaceAll "." "_") ($route|replaceAll "/" "_")}}
+        {{/* myplugin gets all working services from consul services api and all app names under the k/v path from consul k/v api, */}}
+        {{/* if none of the app names has responding working service, then myplugin returns "false", otherwise return "true" */}}
+        {{ if (plugin "app_conf_service_instance_checker" (printf "routes/%s/%s/" $domain $pathKey) (env "CONSUL_HTTP_ADDR")) | eq "true" }}
+          upstream {{$proxy_pass}} {
+              {{range $pair := $pathPairs }}
+                {{$app := .Key}}
+                {{ range $service := services }}
+                  {{ if $service.Name | eq $app }}
+                    {{/* if a service is scaled, then there are multi services with the same name */}}
+                    {{ range service $service.Name }}
+                    server {{.Address}}:{{.Port}};
+                    {{ end }}
+                  {{end}}
+                {{end}}
+              {{end}}
+          }
+          server {
+             listen 80;
+             server_name {{$domain}};
+             location /{{$route }} {
+               proxy_pass http://{{$proxy_pass}}/{{$route}};
+             }
+          }
+        {{end}}
+    {{end}}
+  {{end}}
 
 }
 
