@@ -57,7 +57,7 @@ http {
   {{ range $key, $pairs := tree "routes"| byKey }}
     {{$domain := $key}}
     {{ range $pathKey, $pathPairs := tree (printf "%s/%s" "routes" $domain) | byKey }}
-        {{$route := $pathKey|replaceAll ":" "/"}}
+        {{$route := $pathKey|replaceAll ":" "/"|replaceAll "@" ""}}
         {{$proxy_pass := printf "%s-%s" ($domain|replaceAll "." "-") ($route|replaceAll "/" "-")}}
         {{/* myplugin gets all working services from consul services api and all app names under the k/v path from consul k/v api, */}}
         {{/* if none of the app names has responding working service, then myplugin returns "false", otherwise return "true" */}}
