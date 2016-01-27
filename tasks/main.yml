@@ -7,7 +7,7 @@
   copy: src=nginx.conf.ctmpl dest=/etc/nginx/ctmpl/nginx.conf.ctmpl force=yes
 
 - name: copy consul plugins
-  copy: src=app_conf_service_instance_checker dest=/bin/app_conf_service_instance_checker
+  copy: src=app_conf_service_instance_checker dest=/bin/app_conf_service_instance_checker mode=555
 
 - name: config in file
   template: src=nginx.cfg.j2 dest=/opt/consul-template/config.d/nginx.cfg
