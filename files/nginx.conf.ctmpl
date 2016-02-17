@@ -10,50 +10,36 @@ http {
   {{ range "router/nginx/http" | ls }}
   {{ .Key }} {{ .Value }};{{ end }}
 
-  {{ range $service := services }}
-    {{ if not (in ("mesos-consul,consul,builder"|split ",") $service.Name) }}
-        {{ range .Tags }}
-            upstream {{ $service.Name }}_{{ . }} {
-                {{ with $service_tag := printf "%s.%s" . $service.Name }}{{ range service $service_tag }}
-                server {{ .Address }}:{{ .Port }};{{ end }} {{ end }}
-              }
-        {{ else }}
-            upstream {{ $service.Name }} {
-                {{ range service $service.Name }}
-                server {{ .Address }}:{{ .Port }};{{ end }}
-            }
-        {{ end }}
-    {{ end }}
+  {{ range $service := service "api-build" }}
+     upstream {{ $service.Name }} {
+       server {{ .Address }}:{{ .Port }};
+     }
   {{ end }}
-
-
-  {{ range $service := services }}
-    {{ if not (in ("mesos-consul,consul,builder"|split ",") $service.Name) }}
-        {{ range .Tags }}
-          server {
-            listen 80;
-            server_name {{ . }}.{{ $service.Name }}.{{key "router/domain"}};
-            location / {
-              proxy_pass http://{{ $service.Name }}_{{ . }}/;
-              proxy_set_header Host            $host;
-              proxy_set_header X-Real-IP $remote_addr;
-              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            }
-          }
-        {{ else }}
-          server {
-            listen 80;
-            server_name {{ $service.Name }}.{{key "router/domain"}};
-            location / {
-              proxy_pass http://{{ $service.Name }}/;
-              proxy_set_header Host            $host;
-              proxy_set_header X-Real-IP $remote_addr;
-              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            }
-          }
-        {{ end }}
-    {{ end }}
+  {{ range $service := service "api-deployment" }}
+     upstream {{ $service.Name }} {
+       server {{ .Address }}:{{ .Port }};
+     }
   {{ end }}
+  server {
+    listen 80;
+    server_name cde.{{key "router/domain"}};
+    {{ range $service := service "api-build" }}
+    location /build {
+      proxy_pass http://{{ $service.Name }}/build;
+      proxy_set_header Host            $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+    {{ end }}
+    {{ range $service := service "api-deployment" }}
+    location /deployment {
+      proxy_pass http://{{ $service.Name }}/deployment;
+      proxy_set_header Host            $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+    {{ end }}
+  }
   {{ range $key, $pairs := tree "routes"| byKey }}
     {{$domain := $key}}
     {{ range $pathKey, $pathPairs := tree (printf "%s/%s" "routes" $domain) | byKey }}
@@ -99,8 +85,8 @@ http {
 }
 
 stream {
-    {{range service "builder"}}
-    upstream builder {
+    {{range service "git"}}
+    upstream git {
         server {{.Address}}:{{.Port}};
     }
 
@@ -108,7 +94,7 @@ stream {
         listen 2222;
         proxy_connect_timeout  "10000";
         proxy_timeout          "1200000";
-        proxy_pass builder;
+        proxy_pass git;
     }
     {{end}}
 }
