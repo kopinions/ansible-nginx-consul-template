@@ -20,6 +20,7 @@ http {
        server {{ .Address }}:{{ .Port }};
      }
   {{ end }}
+
   server {
     listen 80;
     server_name cde.{{key "router/domain"}};
@@ -40,6 +41,64 @@ http {
     }
     {{ end }}
   }
+
+  {{ range $service := service "marathon" }}
+         upstream {{ $service.Name }} {
+           server {{ .Address }}:{{ .Port }};
+         }
+  {{ end }}
+
+  server {
+      listen 80;
+      server_name marathon.{{key "router/domain"}};
+      {{ range $service := service "marathon" }}
+      location / {
+        proxy_pass http://{{ $service.Name }};
+        proxy_set_header Host            $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+      {{ end }}
+  }
+
+  {{ range $service := service "mesos" }}
+      upstream {{ $service.Name }} {
+        server {{ .Address }}:{{ .Port }};
+      }
+  {{ end }}
+
+  server {
+      listen 80;
+      server_name mesos.{{key "router/domain"}};
+      {{ range $service := service "mesos" }}
+      location / {
+        proxy_pass http://{{ $service.Name }};
+        proxy_set_header Host            $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+      {{ end }}
+  }
+
+  {{ range $service := service "consul" }}
+        upstream {{ $service.Name }} {
+          server {{ .Address }}:8500;
+        }
+  {{ end }}
+
+    server {
+        listen 80;
+        server_name consul.{{key "router/domain"}};
+        {{ range $service := service "consul" }}
+        location / {
+          proxy_pass http://{{ $service.Name }};
+          proxy_set_header Host            $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        {{ end }}
+    }
+
   {{ range $key, $pairs := tree "routes"| byKey }}
     {{$domain := $key}}
     {{ range $pathKey, $pathPairs := tree (printf "%s/%s" "routes" $domain) | byKey }}
