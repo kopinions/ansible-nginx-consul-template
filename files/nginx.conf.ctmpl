@@ -10,137 +10,144 @@ http {
   {{ range "router/nginx/http" | ls }}
   {{ .Key }} {{ .Value }};{{ end }}
 
-  {{ range $service := service "api-build" }}
-     upstream {{ $service.Name }} {
-       server {{ .Address }}:{{ .Port }};
-     }
-  {{ end }}
-  {{ range $service := service "api-deployment" }}
-     upstream {{ $service.Name }} {
-       server {{ .Address }}:{{ .Port }};
-     }
-  {{ end }}
+	{{ $build := service "api-build" }}
+	{{ $deploy := service "api-deployment"}}
+	{{if $build }}
+	upstream api-build {
+		  {{ range $build }}
+		  server {{ .Address }}:{{ .Port }};
+		  {{ end }}
+	}
+	{{end}}
 
-  server {
-    listen 80;
-    server_name cde.{{key "router/domain"}};
-    {{ range $service := service "api-build" }}
-    location /build {
-      proxy_pass http://{{ $service.Name }}/build;
-      proxy_set_header Host            $host;
-      proxy_set_header X-Real-IP $remote_addr;
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-    {{ end }}
-    {{ range $service := service "api-deployment" }}
-    location /deployment {
-      proxy_pass http://{{ $service.Name }}/deployment;
-      proxy_set_header Host            $host;
-      proxy_set_header X-Real-IP $remote_addr;
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-    {{ end }}
-  }
+	{{if $deploy }}
+	upstream api-deployment {
+		   {{ range $deploy }}
+		   server {{ .Address }}:{{ .Port }};
+		   {{ end }}
+	}
+	{{ end }}
+	{{ if or $build $deploy}}
+	server {
+		  listen 80;
+		  server_name cde.{{key "router/domain"}};
+		  {{if $build }}
+		  location /build {
+			proxy_pass http://api-build/build;
+			proxy_set_header Host            $host;
+			proxy_set_header X-Real-IP $remote_addr;
+			proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		  }
+		  {{ end }}
+		  {{if $deploy }}
+		  location /deployment {
+			proxy_pass http://api-deployment/deployment;
+			proxy_set_header Host            $host;
+			proxy_set_header X-Real-IP $remote_addr;
+			proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		  }
+		  {{ end }}
+	}
+	{{ end }}
 
-  {{ range $service := service "marathon" }}
-         upstream {{ $service.Name }} {
-           server {{ .Address }}:{{ .Port }};
-         }
-  {{ end }}
+	{{if service "marathon"}}
+	upstream "marathon" {
+		  {{ range $service := service "marathon" }}
+		  server {{ .Address }}:{{ .Port }};
+		  {{ end }}
+	}
+	server {
+			listen 80;
+			server_name marathon.{{key "router/domain"}};
+			location / {
+				  proxy_pass http://marathon;
+				  proxy_set_header Host            $host;
+				  proxy_set_header X-Real-IP $remote_addr;
+				  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+			}
+	}
+	{{ end }}
+	  {{ if service "mesos" }}
+	  upstream mesos {
+		{{ range $service := service "mesos" }}
+					server {{ .Address }}:{{ .Port }};
+			{{ end }}
+	  }
+	  server {
+			  listen 80;
+			  server_name mesos.{{key "router/domain"}};
+			  location / {
+					proxy_pass http://mesos;
+					proxy_set_header Host            $host;
+					proxy_set_header X-Real-IP $remote_addr;
+					proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+			  }
+	  }
+	  {{ end }}
 
-  server {
-      listen 80;
-      server_name marathon.{{key "router/domain"}};
-      {{ range $service := service "marathon" }}
-      location / {
-        proxy_pass http://{{ $service.Name }};
-        proxy_set_header Host            $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      }
-      {{ end }}
-  }
-
-  {{ range $service := service "mesos" }}
-      upstream {{ $service.Name }} {
-        server {{ .Address }}:{{ .Port }};
-      }
-  {{ end }}
-
-  server {
-      listen 80;
-      server_name mesos.{{key "router/domain"}};
-      {{ range $service := service "mesos" }}
-      location / {
-        proxy_pass http://{{ $service.Name }};
-        proxy_set_header Host            $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      }
-      {{ end }}
-  }
-
-  {{ range $service := service "consul" }}
-        upstream {{ $service.Name }} {
-          server {{ .Address }}:8500;
-        }
-  {{ end }}
-
-    server {
-        listen 80;
-        server_name consul.{{key "router/domain"}};
-        {{ range $service := service "consul" }}
-        location / {
-          proxy_pass http://{{ $service.Name }};
-          proxy_set_header Host            $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        }
-        {{ end }}
-    }
+	  {{ if service "consul" }}
+		upstream consul {
+			{{ range $service := service "consul" }}
+				server {{ .Address }}:8500;
+			{{ end }}
+		}
+		server {
+			listen 80;
+			server_name consul.{{key "router/domain"}};
+			location / {
+			  proxy_pass http://consul;
+			  proxy_set_header Host            $host;
+			  proxy_set_header X-Real-IP $remote_addr;
+			  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+			}
+		}
+	  {{ end }}
 
   {{ range $key, $pairs := tree "routes"| byKey }}
-    {{$domain := $key}}
-    {{ range $pathKey, $pathPairs := tree (printf "%s/%s" "routes" $domain) | byKey }}
+	{{$domain := $key}}
+	{{ range $pathKey, $pathPairs := tree (printf "%s/%s" "routes" $domain) | byKey }}
 
-        {{ $route := $pathKey|replaceAll ":" "/"|regexReplaceAll "^@$" "" }}
+		{{ $route := $pathKey|replaceAll ":" "/"|regexReplaceAll "^@$" "" }}
 
-        {{$proxy_pass := printf "%s-%s" ($domain|replaceAll "." "-") ($route|replaceAll "/" "-")}}
-        {{/* myplugin gets all working services from consul services api and all app names under the k/v path from consul k/v api, */}}
-        {{/* if none of the app names has responding working service, then myplugin returns "false", otherwise return "true" */}}
-        {{ if (plugin "app_conf_service_instance_checker" (printf "routes/%s/%s/" $domain $pathKey) (env "CONSUL_HTTP_ADDR")) | eq "true" }}
-          upstream {{$proxy_pass}} {
-              {{range $pair := $pathPairs }}
-                {{$app := .Key}}
-                {{ range $service := services }}
-                  {{ if $service.Name | eq $app }}
-                    {{/* if a service is scaled, then there are multi services with the same name */}}
-                    {{ range service $service.Name }}
-                    server {{.Address}}:{{.Port}};
-                    {{ end }}
-                  {{end}}
-                {{end}}
-              {{end}}
-          }
-        {{end}}
-    {{end}}
+		{{$proxy_pass := printf "%s-%s" ($domain|replaceAll "." "-") ($route|replaceAll "/" "-")}}
+		{{/* myplugin gets all working services from consul services api and all app names under the k/v path from consul k/v api, */}}
+		{{/* if none of the app names has responding working service, then myplugin returns "false", otherwise return "true" */}}
+		{{ if (plugin "app_conf_service_instance_checker" (printf "routes/%s/%s/" $domain $pathKey) (env "CONSUL_HTTP_ADDR")) | eq "true" }}
+		  upstream {{$proxy_pass}} {
+			  {{range $pair := $pathPairs }}
+				{{$app := .Key}}
+				{{ range $service := services }}
+				  {{ if $service.Name | eq $app }}
+					{{/* if a service is scaled, then there are multi services with the same name */}}
+					{{ range service $service.Name }}
+					server {{.Address}}:{{.Port}};
+					{{ end }}
+				  {{end}}
+				{{end}}
+			  {{end}}
+		  }
+		{{end}}
+	{{end}}
   {{end}}
 
   {{ plugin "server_generator" }}
-  
+
 }
 
+{{ $git := service "git"}}
+{{ if $git }}
 stream {
-    {{range service "git"}}
-    upstream git {
-        server {{.Address}}:{{.Port}};
-    }
+	upstream git {
+		{{ range $git }}
+		server {{.Address}}:{{.Port}};
+		{{ end }}
+	}
 
-    server {
-        listen 2222;
-        proxy_connect_timeout  "10000";
-        proxy_timeout          "1200000";
-        proxy_pass git;
-    }
-    {{end}}
+	server {
+		listen 2222;
+		proxy_connect_timeout  "10000";
+		proxy_timeout          "1200000";
+		proxy_pass git;
+	}
 }
+{{end}}
