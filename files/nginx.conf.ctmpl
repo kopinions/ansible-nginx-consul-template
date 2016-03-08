@@ -67,9 +67,9 @@ http {
 			}
 	}
 	{{ end }}
-	  {{ if service "mesos" }}
+	  {{ if service "leader.mesos" }}
 	  upstream mesos {
-		{{ range $service := service "mesos" }}
+		{{ range $service := service "leader.mesos" }}
 					server {{ .Address }}:{{ .Port }};
 			{{ end }}
 	  }
