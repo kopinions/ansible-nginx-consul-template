@@ -30,7 +30,7 @@ http {
 	{{ if or $build $deploy}}
 	server {
 		  listen 80;
-		  server_name cde.{{key "router/domain"}};
+		  server_name cde.{{key "cde/platform/domain"}};
 		  {{if $build }}
 		  location /build {
 			proxy_pass http://api-build/build;
@@ -58,7 +58,7 @@ http {
 	}
 	server {
 			listen 80;
-			server_name marathon.{{key "router/domain"}};
+			server_name marathon.{{key "cde/platform/domain"}};
 			location / {
 				  proxy_pass http://marathon;
 				  proxy_set_header Host            $host;
@@ -75,7 +75,7 @@ http {
 	  }
 	  server {
 			  listen 80;
-			  server_name mesos.{{key "router/domain"}};
+			  server_name mesos.{{key "cde/platform/domain"}};
 			  location / {
 					proxy_pass http://mesos;
 					proxy_set_header Host            $host;
@@ -93,7 +93,7 @@ http {
 		}
 		server {
 			listen 80;
-			server_name consul.{{key "router/domain"}};
+			server_name consul.{{key "cde/platform/domain"}};
 			location / {
 			  proxy_pass http://consul;
 			  proxy_set_header Host            $host;
