@@ -10,38 +10,38 @@ http {
   {{ range "router/nginx/http" | ls }}
   {{ .Key }} {{ .Value }};{{ end }}
 
-	{{ $build := service "api-build" }}
-	{{ $deploy := service "api-deployment"}}
-	{{if $build }}
-	upstream api-build {
-		  {{ range $build }}
+	{{ $controller := service "api-controller" }}
+	{{ $launcher := service "api-launcher"}}
+	{{if $controller }}
+	upstream api-controller {
+		  {{ range $controller }}
 		  server {{ .Address }}:{{ .Port }};
 		  {{ end }}
 	}
 	{{end}}
 
-	{{if $deploy }}
-	upstream api-deployment {
-		   {{ range $deploy }}
+	{{if $launcher }}
+	upstream api-launcher {
+		   {{ range $launcher }}
 		   server {{ .Address }}:{{ .Port }};
 		   {{ end }}
 	}
 	{{ end }}
-	{{ if or $build $deploy}}
+	{{ if or $controller $launcher}}
 	server {
 		  listen 80;
 		  server_name cde.{{key "cde/platform/domain"}};
-		  {{if $build }}
-		  location /build {
-			proxy_pass http://api-build/build;
+		  {{if $controller }}
+		  location /controller {
+			proxy_pass http://api-controller/controller;
 			proxy_set_header Host            $host;
 			proxy_set_header X-Real-IP $remote_addr;
 			proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 		  }
 		  {{ end }}
-		  {{if $deploy }}
-		  location /deployment {
-			proxy_pass http://api-deployment/deployment;
+		  {{if $launcher }}
+		  location /launcher {
+			proxy_pass http://api-launcher/launcher;
 			proxy_set_header Host            $host;
 			proxy_set_header X-Real-IP $remote_addr;
 			proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
